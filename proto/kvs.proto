@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package kvs;
+
+option go_package = "github.com/ysakiyev/go-kvs";
+
+service GoKvs {
+  rpc Get(KeyRequest) returns(ValResponse) {}
+  rpc Set(KeyValRequest) returns(EmptyResponse) {}
+  rpc Del(KeyRequest) returns(EmptyResponse) {}
+}
+
+message KeyRequest {
+  string key = 1;
+}
+
+message KeyValRequest {
+  string key = 1;
+  string val = 2;
+}
+
+message ValResponse {
+  string value = 1;
+}
+
+message EmptyResponse {
+}
