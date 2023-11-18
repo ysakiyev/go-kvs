@@ -11,13 +11,13 @@ type Kvs struct {
 }
 
 func New() (*Kvs, error) {
-	wall, err := wal.New("wal.log")
+	storage := make(map[string]string)
+	wall, err := wal.New("wal.log", storage)
 	if err != nil {
 		return nil, err
 	}
 
-	storage := make(map[string]string)
-	err = wall.Startup(storage)
+	err = wall.Startup()
 	if err != nil {
 		return nil, err
 	}

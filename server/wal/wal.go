@@ -10,14 +10,16 @@ import (
 
 type WAL interface {
 	Append(cmd string) error
-	Startup(m map[string]string) error
+	Startup() error
+	compactLogs() error
 }
 
 type WriteAheadLog struct {
 	file *os.File
+	data map[string]string
 }
 
-func New(filePath string) (*WriteAheadLog, error) {
+func New(filePath string, data map[string]string) (*WriteAheadLog, error) {
 	// check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		// create
@@ -33,7 +35,7 @@ func New(filePath string) (*WriteAheadLog, error) {
 		return nil, err
 	}
 
-	return &WriteAheadLog{file: file}, nil
+	return &WriteAheadLog{file: file, data: data}, nil
 }
 
 func (w *WriteAheadLog) Append(cmd string) error {
@@ -45,7 +47,7 @@ func (w *WriteAheadLog) Append(cmd string) error {
 	return nil
 }
 
-func (w *WriteAheadLog) Startup(m map[string]string) error {
+func (w *WriteAheadLog) Startup() error {
 	// Create a scanner to read the file line by line
 	scanner := bufio.NewScanner(w.file)
 	log.Info().Msgf("Starting up... loading records to memory")
@@ -68,7 +70,7 @@ func (w *WriteAheadLog) Startup(m map[string]string) error {
 			}
 			key := parts[1]
 			val := parts[2]
-			m[key] = val
+			w.data[key] = val
 
 		case "del":
 			if len(parts) != 2 {
@@ -76,7 +78,7 @@ func (w *WriteAheadLog) Startup(m map[string]string) error {
 				continue
 			}
 			key := parts[1]
-			delete(m, key)
+			delete(w.data, key)
 
 		default:
 			fmt.Println("Invalid command in file")
@@ -85,6 +87,32 @@ func (w *WriteAheadLog) Startup(m map[string]string) error {
 
 	if err := scanner.Err(); err != nil {
 		return err
+	}
+
+	err := w.compactLogs()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (w *WriteAheadLog) compactLogs() error {
+	err := w.file.Truncate(0)
+	if err != nil {
+		return err
+	}
+
+	_, err = w.file.Seek(0, 0)
+	if err != nil {
+		return err
+	}
+
+	for key, val := range w.data {
+		err = w.Append(fmt.Sprintf("set %s %s", key, val))
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
