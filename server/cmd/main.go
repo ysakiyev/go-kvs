@@ -18,7 +18,11 @@ func main() {
 		log.Fatal().Msgf("Failed to listen: %v", err)
 	}
 	grpcServer := grpc.NewServer()
-	pb.RegisterGoKvsServer(grpcServer, g.NewKvsServer(kvs.New()))
+	kvss, err := kvs.New()
+	if err != nil {
+		log.Fatal().Msgf("Failed to init KVS: %v", err)
+	}
+	pb.RegisterGoKvsServer(grpcServer, g.NewKvsServer(kvss))
 
 	log.Info().Msg("Listening on :50051")
 	if err := grpcServer.Serve(lis); err != nil {
