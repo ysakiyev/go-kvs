@@ -18,18 +18,27 @@ func NewKvsServer(kvs *kvs.Kvs) *KvsServer {
 }
 
 func (k *KvsServer) Get(ctx context.Context, request *pb.KeyRequest) (*pb.ValResponse, error) {
-	res := k.kvs.Get(request.Key)
+	res, err := k.kvs.Get(request.Key)
+	if err != nil {
+		return nil, err
+	}
 	return &pb.ValResponse{
 		Value: res,
 	}, nil
 }
 
 func (k *KvsServer) Set(ctx context.Context, request *pb.KeyValRequest) (*pb.EmptyResponse, error) {
-	k.kvs.Set(request.Key, request.Val)
+	err := k.kvs.Set(request.Key, request.Val)
+	if err != nil {
+		return nil, err
+	}
 	return &pb.EmptyResponse{}, nil
 }
 
 func (k *KvsServer) Del(ctx context.Context, request *pb.KeyRequest) (*pb.EmptyResponse, error) {
-	k.kvs.Del(request.Key)
+	err := k.kvs.Del(request.Key)
+	if err != nil {
+		return nil, err
+	}
 	return &pb.EmptyResponse{}, nil
 }
