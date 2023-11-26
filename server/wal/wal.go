@@ -2,24 +2,21 @@ package wal
 
 import (
 	"bufio"
-	"fmt"
 	"github.com/rs/zerolog/log"
 	"os"
-	"strings"
 )
 
 type WAL interface {
-	Append(cmd string) error
-	Startup() error
-	compactLogs() error
+	Append(cmd []byte) (int64, error)
+	Read(offset int64) ([]byte, error)
 }
 
 type WriteAheadLog struct {
-	file *os.File
-	data map[string]string
+	file  *os.File
+	index map[string]int64
 }
 
-func New(filePath string, data map[string]string) (*WriteAheadLog, error) {
+func New(filePath string, index map[string]int64) (*WriteAheadLog, error) {
 	// check if file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		// create
@@ -35,85 +32,40 @@ func New(filePath string, data map[string]string) (*WriteAheadLog, error) {
 		return nil, err
 	}
 
-	return &WriteAheadLog{file: file, data: data}, nil
+	return &WriteAheadLog{file: file, index: index}, nil
 }
 
-func (w *WriteAheadLog) Append(cmd string) error {
-	_, err := w.file.WriteString(cmd + "\n")
+func (w *WriteAheadLog) Append(cmd []byte) (int64, error) {
+	offset, err := w.file.Seek(0, 1)
 	if err != nil {
-		return err
+		return 0, err
+	}
+
+	cmd = append(cmd, '\n')
+
+	_, err = w.file.Write(cmd)
+	if err != nil {
+		return 0, err
 	}
 	log.Info().Msgf("Appended: %s", cmd)
-	return nil
+	return offset, nil
 }
 
-func (w *WriteAheadLog) Startup() error {
-	// Create a scanner to read the file line by line
-	scanner := bufio.NewScanner(w.file)
-	log.Info().Msgf("Starting up... loading records to memory")
-
-	// Iterate through each line in the file
-	for scanner.Scan() {
-		line := scanner.Text()
-		log.Info().Msgf("Loading: %s", line)
-		// Parse the command
-		parts := strings.Fields(line)
-		if len(parts) == 0 {
-			continue // TODO: probably need to error, since there shouldn't be empty lines
-		}
-
-		// Check the command and validate arguments
-		switch parts[0] {
-		case "set":
-			if len(parts) != 3 {
-				continue
-			}
-			key := parts[1]
-			val := parts[2]
-			w.data[key] = val
-
-		case "del":
-			if len(parts) != 2 {
-				fmt.Println("Invalid 'del' command. Usage: del {key}")
-				continue
-			}
-			key := parts[1]
-			delete(w.data, key)
-
-		default:
-			fmt.Println("Invalid command in file")
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return err
-	}
-
-	err := w.compactLogs()
+func (w *WriteAheadLog) Read(offset int64) ([]byte, error) {
+	// Set the file cursor to the specified offset
+	_, err := w.file.Seek(offset, 0)
 	if err != nil {
-		return err
+		return []byte{}, err
 	}
 
-	return nil
-}
+	// Create a buffered reader for efficient reading
+	reader := bufio.NewReader(w.file)
 
-func (w *WriteAheadLog) compactLogs() error {
-	err := w.file.Truncate(0)
+	// Read until the end of the line
+	lineBytes, err := reader.ReadBytes('\n')
 	if err != nil {
-		return err
+		return []byte{}, err
 	}
 
-	_, err = w.file.Seek(0, 0)
-	if err != nil {
-		return err
-	}
-
-	for key, val := range w.data {
-		err = w.Append(fmt.Sprintf("set %s %s", key, val))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return lineBytes, nil
 }

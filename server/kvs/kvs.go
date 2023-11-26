@@ -1,53 +1,108 @@
 package kvs
 
 import (
+	"bufio"
 	"fmt"
+	"go-kvs/server/kvs/command"
 	"go-kvs/server/wal"
 )
 
 type Kvs struct {
-	storage map[string]string
-	wal     wal.WAL
+	index map[string]int64
+	wal   wal.WAL
 }
 
-func New() (*Kvs, error) {
-	storage := make(map[string]string)
-	wall, err := wal.New("wal.log", storage)
+func New(fileName string) (*Kvs, error) {
+	index := make(map[string]int64)
+	wall, err := wal.New(fileName, index)
 	if err != nil {
 		return nil, err
 	}
 
-	err = wall.Startup()
-	if err != nil {
-		return nil, err
+	var offset int64
+	for {
+		cmdBytes, rerr := wall.Read(offset)
+		if rerr != nil {
+			if rerr == bufio.ErrFinalToken {
+				break
+			}
+			return nil, rerr
+		}
+
+		cmd, err := command.Deserialize(cmdBytes)
+		if err != nil {
+			return nil, err
+		}
+
+		switch cmd.Cmd {
+		case "set":
+			index[cmd.Key] = offset
+		case "del":
+			delete(index, cmd.Key)
+		}
+
+		offset += int64(len(cmdBytes)) + 1
 	}
 
 	return &Kvs{
-		storage: storage,
-		wal:     wall,
+		index: index,
+		wal:   wall,
 	}, nil
 }
 
-func (k *Kvs) Get(key string) (string, error) {
-	return k.storage[key], nil
-}
-
 func (k *Kvs) Set(key, val string) error {
-	err := k.wal.Append(fmt.Sprintf("set %s %s", key, val))
+	// create Cmd object and serialize to bytes
+	cmd := command.New("set", key, val)
+	cmdBytes, err := cmd.Serialize()
 	if err != nil {
 		return err
 	}
-	k.storage[key] = val
+
+	// append Cmd bytes to file and store offset in memory index
+	offset, err := k.wal.Append(cmdBytes)
+	if err != nil {
+		return err
+	}
+	k.index[key] = offset
 
 	return nil
 }
 
 func (k *Kvs) Del(key string) error {
-	err := k.wal.Append(fmt.Sprintf("del %s", key))
+	cmd := command.New("del", key, "")
+	bytes, err := cmd.Serialize()
 	if err != nil {
 		return err
 	}
-	delete(k.storage, key)
+	_, err = k.wal.Append(bytes)
+	if err != nil {
+		return err
+	}
+	delete(k.index, key)
 
 	return nil
+}
+
+func (k *Kvs) Get(key string) (string, error) {
+	offset, exists := k.index[key]
+	if !exists {
+		return "", fmt.Errorf("key doesn't exist")
+	}
+
+	bytes, err := k.wal.Read(offset)
+	if err != nil {
+		return "", err
+	}
+
+	cmd, err := command.Deserialize(bytes)
+	if err != nil {
+		return "", err
+	}
+
+	val, err := cmd.GetVal()
+	if err != nil {
+		return "", nil
+	}
+
+	return val, nil
 }
