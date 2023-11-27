@@ -2,9 +2,12 @@ package kvs
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"go-kvs/server/kvs/command"
 	"go-kvs/server/wal"
+	"io"
 )
 
 type Kvs struct {
@@ -19,35 +22,57 @@ func New(fileName string) (*Kvs, error) {
 		return nil, err
 	}
 
+	k := Kvs{
+		index: index,
+		wal:   wall,
+	}
+
+	err = k.Init()
+	if err != nil {
+		return nil, err
+	}
+
+	return &k, nil
+}
+
+func (k *Kvs) Init() error {
 	var offset int64
 	for {
-		cmdBytes, rerr := wall.Read(offset)
-		if rerr != nil {
-			if rerr == bufio.ErrFinalToken {
+		cmdBytes, newOffset, readErr := k.wal.Read(offset)
+		if readErr != nil {
+			if readErr == bufio.ErrFinalToken || readErr == io.EOF || readErr == io.ErrUnexpectedEOF {
 				break
 			}
-			return nil, rerr
+			return readErr
 		}
 
-		cmd, err := command.Deserialize(cmdBytes)
-		if err != nil {
-			return nil, err
+		// Create a buffer to read the encoded data
+		buffer := bytes.NewBuffer(cmdBytes)
+
+		// Create a decoder
+		decoder := gob.NewDecoder(buffer)
+
+		var cmd command.Cmd
+		// Decode the bytes into the struct
+		dErr := decoder.Decode(&cmd)
+		if dErr != nil {
+			if dErr == io.EOF {
+				break
+			}
+			return dErr
 		}
 
 		switch cmd.Cmd {
 		case "set":
-			index[cmd.Key] = offset
+			k.index[cmd.Key] = offset
 		case "del":
-			delete(index, cmd.Key)
+			delete(k.index, cmd.Key)
 		}
 
-		offset += int64(len(cmdBytes)) + 1
+		offset = newOffset
 	}
 
-	return &Kvs{
-		index: index,
-		wal:   wall,
-	}, nil
+	return nil
 }
 
 func (k *Kvs) Set(key, val string) error {
@@ -70,11 +95,13 @@ func (k *Kvs) Set(key, val string) error {
 
 func (k *Kvs) Del(key string) error {
 	cmd := command.New("del", key, "")
-	bytes, err := cmd.Serialize()
+	cmdBytes, err := cmd.Serialize()
 	if err != nil {
 		return err
 	}
-	_, err = k.wal.Append(bytes)
+
+	// append Cmd bytes to file and delete from index
+	_, err = k.wal.Append(cmdBytes)
 	if err != nil {
 		return err
 	}
@@ -89,12 +116,12 @@ func (k *Kvs) Get(key string) (string, error) {
 		return "", fmt.Errorf("key doesn't exist")
 	}
 
-	bytes, err := k.wal.Read(offset)
+	cmdBytes, _, err := k.wal.Read(offset)
 	if err != nil {
 		return "", err
 	}
 
-	cmd, err := command.Deserialize(bytes)
+	cmd, err := command.Deserialize(cmdBytes)
 	if err != nil {
 		return "", err
 	}

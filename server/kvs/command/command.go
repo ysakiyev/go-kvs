@@ -42,6 +42,8 @@ func Deserialize(cmdBytes []byte) (Cmd, error) {
 	// Create a buffer to read the encoded data
 	buffer := bytes.NewBuffer(cmdBytes)
 
+	gob.Register(Cmd{})
+
 	// Create a decoder
 	decoder := gob.NewDecoder(buffer)
 

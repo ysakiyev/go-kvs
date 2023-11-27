@@ -8,7 +8,7 @@ import (
 
 type WAL interface {
 	Append(cmd []byte) (int64, error)
-	Read(offset int64) ([]byte, error)
+	Read(offset int64) ([]byte, int64, error)
 }
 
 type WriteAheadLog struct {
@@ -51,11 +51,11 @@ func (w *WriteAheadLog) Append(cmd []byte) (int64, error) {
 	return offset, nil
 }
 
-func (w *WriteAheadLog) Read(offset int64) ([]byte, error) {
+func (w *WriteAheadLog) Read(offset int64) ([]byte, int64, error) {
 	// Set the file cursor to the specified offset
 	_, err := w.file.Seek(offset, 0)
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, 0, err
 	}
 
 	// Create a buffered reader for efficient reading
@@ -64,8 +64,10 @@ func (w *WriteAheadLog) Read(offset int64) ([]byte, error) {
 	// Read until the end of the line
 	lineBytes, err := reader.ReadBytes('\n')
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, 0, err
 	}
 
-	return lineBytes, nil
+	newOffset := offset + int64(len(lineBytes))
+
+	return lineBytes, newOffset, nil
 }
