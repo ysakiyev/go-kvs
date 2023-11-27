@@ -94,6 +94,11 @@ func (k *Kvs) Set(key, val string) error {
 }
 
 func (k *Kvs) Del(key string) error {
+	_, exists := k.index[key]
+	if !exists {
+		return fmt.Errorf("key doesn't exist")
+	}
+
 	cmd := command.New("del", key, "")
 	cmdBytes, err := cmd.Serialize()
 	if err != nil {
