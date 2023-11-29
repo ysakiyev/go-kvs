@@ -5,8 +5,8 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
-	"go-kvs/server/kvs/command"
-	"go-kvs/server/wal"
+	"go-kvs/internal/server/wal"
+	"go-kvs/pkg/kvs/command"
 	"io"
 )
 

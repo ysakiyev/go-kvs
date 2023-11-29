@@ -3,9 +3,9 @@ package main
 import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	pb "go-kvs/proto/pb"
-	g "go-kvs/server/grpc"
-	"go-kvs/server/kvs"
+	pb "go-kvs/api/proto/pb"
+	g "go-kvs/internal/server"
+	"go-kvs/pkg/kvs"
 	"google.golang.org/grpc"
 	"net"
 )
