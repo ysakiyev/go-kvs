@@ -10,6 +10,12 @@ Set operation appends serialized command to WAL and adds/updates in-memory index
 
 Get operation reads key from in-memory index. If it exists, reads line of file from offset and deserializes. 
 
+Run server:
+- go run ./cmd/server/main.go
+
+Run client:
+- go run ./cmd/client/main.go
+
 Commands:
 - get {key}
 - set {key} {val}
