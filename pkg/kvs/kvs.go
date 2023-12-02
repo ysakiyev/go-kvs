@@ -118,7 +118,7 @@ func (k *Kvs) Del(key string) error {
 func (k *Kvs) Get(key string) (string, error) {
 	offset, exists := k.index[key]
 	if !exists {
-		return "", fmt.Errorf("key doesn't exist")
+		return "", fmt.Errorf("key doesn't exist, key: %s", key)
 	}
 
 	cmdBytes, _, err := k.wal.Read(offset)

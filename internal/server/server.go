@@ -1,7 +1,7 @@
 package server
 
 import (
-	context "context"
+	"context"
 	"go-kvs/api/proto/pb"
 	"go-kvs/pkg/kvs"
 )
@@ -22,6 +22,7 @@ func (k *KvsServer) Get(ctx context.Context, request *go_kvs.KeyRequest) (*go_kv
 	if err != nil {
 		return nil, err
 	}
+
 	return &go_kvs.ValResponse{
 		Value: res,
 	}, nil

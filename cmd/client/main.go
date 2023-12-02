@@ -4,18 +4,19 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	pb "go-kvs/api/proto/pb"
 	g "go-kvs/internal/client"
 	"google.golang.org/grpc"
-	"log"
+	"google.golang.org/grpc/status"
 	"os"
 	"strings"
 )
 
 func main() {
-	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
-	if err != nil {
-		log.Fatalf("Failed to dial: %v", err)
+	conn, dialErr := grpc.Dial("localhost:50051", grpc.WithInsecure())
+	if dialErr != nil {
+		log.Fatal().Msgf("Failed to dial: %v", dialErr)
 	}
 	defer conn.Close()
 
@@ -47,6 +48,9 @@ func main() {
 			key := parts[1]
 			res, err := client.Get(context.Background(), &pb.KeyRequest{Key: key})
 			if err != nil {
+				if st, ok := status.FromError(err); ok {
+					fmt.Printf("Error: %s\n", st.Message())
+				}
 				continue
 			}
 			fmt.Println(res.Value)
@@ -58,8 +62,11 @@ func main() {
 			}
 			key := parts[1]
 			val := parts[2]
-			_, err = client.Set(context.Background(), &pb.KeyValRequest{Key: key, Val: val})
+			_, err := client.Set(context.Background(), &pb.KeyValRequest{Key: key, Val: val})
 			if err != nil {
+				if st, ok := status.FromError(err); ok {
+					fmt.Printf("Error: %s\n", st.Message())
+				}
 				continue
 			}
 
@@ -69,8 +76,11 @@ func main() {
 				continue
 			}
 			key := parts[1]
-			_, err = client.Del(context.Background(), &pb.KeyRequest{Key: key})
+			_, err := client.Del(context.Background(), &pb.KeyRequest{Key: key})
 			if err != nil {
+				if st, ok := status.FromError(err); ok {
+					fmt.Printf("Error: %s\n", st.Message())
+				}
 				continue
 			}
 
