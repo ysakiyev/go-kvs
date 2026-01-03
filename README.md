@@ -69,4 +69,5 @@ go run ./cmd/client/main.go
 - `get {key}` - Retrieve value for key
 - `set {key} {val}` - Store key-value pair
 - `del {key}` - Delete key
+- `keys` - List all keys
 - `exit` - Close client

@@ -80,3 +80,8 @@ func (k *KvsServer) Del(ctx context.Context, request *go_kvs.KeyRequest) (*go_kv
 
 	return &go_kvs.EmptyResponse{}, nil
 }
+
+func (k *KvsServer) Keys(ctx context.Context, request *go_kvs.EmptyRequest) (*go_kvs.KeysResponse, error) {
+	keys := k.kvs.Keys()
+	return &go_kvs.KeysResponse{Keys: keys}, nil
+}

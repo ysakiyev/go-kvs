@@ -8,6 +8,7 @@ service GoKvs {
   rpc Get(KeyRequest) returns(ValResponse) {}
   rpc Set(KeyValRequest) returns(EmptyResponse) {}
   rpc Del(KeyRequest) returns(EmptyResponse) {}
+  rpc Keys(EmptyRequest) returns(KeysResponse) {}
 }
 
 message KeyRequest {
@@ -23,5 +24,12 @@ message ValResponse {
   string value = 1;
 }
 
+message EmptyRequest {
+}
+
 message EmptyResponse {
+}
+
+message KeysResponse {
+  repeated string keys = 1;
 }

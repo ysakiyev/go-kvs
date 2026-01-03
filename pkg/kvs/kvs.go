@@ -138,3 +138,11 @@ func (k *Kvs) Get(key string) (string, error) {
 
 	return val, nil
 }
+
+func (k *Kvs) Keys() []string {
+	keys := make([]string, 0, len(k.index))
+	for key := range k.index {
+		keys = append(keys, key)
+	}
+	return keys
+}
