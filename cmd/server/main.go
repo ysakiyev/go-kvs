@@ -4,10 +4,10 @@ import (
 	"flag"
 	"fmt"
 	"net"
-	"strings"
 
 	pb "go-kvs/api/proto/pb"
 	"go-kvs/internal/config"
+	"go-kvs/internal/follower"
 	"go-kvs/internal/replication"
 	g "go-kvs/internal/server"
 	"go-kvs/internal/server/middleware"
@@ -42,21 +42,17 @@ func main() {
 	if cfg.IsLeader {
 		// Leader setup
 		log.Info().Msgf("Starting as LEADER on %s", cfg.Address)
-		log.Info().Msgf("Followers: %v", cfg.FollowerAddrs)
 
-		var pool *replication.FollowerPool
-		var replicator *replication.Replicator
+		// Create stream manager for followers
+		streamMgr := replication.NewStreamManager()
 
-		if len(cfg.FollowerAddrs) > 0 {
-			pool, err = replication.NewFollowerPool(cfg.FollowerAddrs)
-			if err != nil {
-				log.Fatal().Msgf("Failed to connect to followers: %v", err)
-			}
-			replicator = replication.NewReplicator(pool)
-		}
-
-		kvsServer := g.NewKvsServer(kvsInstance, replicator, true)
+		// Register client-facing KVS service
+		kvsServer := g.NewKvsServer(kvsInstance, streamMgr, true)
 		pb.RegisterGoKvsServer(grpcServer, kvsServer)
+
+		// Register replication service for follower connections
+		leaderStreamServer := g.NewLeaderStreamServer(streamMgr)
+		pb.RegisterReplicationServer(grpcServer, leaderStreamServer)
 	} else {
 		// Follower setup
 		log.Info().Msgf("Starting as FOLLOWER on %s", cfg.Address)
@@ -66,9 +62,9 @@ func main() {
 		kvsServer := g.NewKvsServer(kvsInstance, nil, false)
 		pb.RegisterGoKvsServer(grpcServer, kvsServer)
 
-		// Register replication service to receive commands from leader
-		followerServer := g.NewFollowerServer(kvsInstance)
-		pb.RegisterReplicationServer(grpcServer, followerServer)
+		// Start stream client to connect to leader (runs in background)
+		streamClient := follower.NewStreamClient(cfg.NodeID, cfg.LeaderAddr, kvsInstance)
+		go streamClient.ConnectToLeader()
 	}
 
 	log.Info().Msgf("Server listening on %s", cfg.Address)
@@ -81,7 +77,6 @@ func parseFlags() *config.ServerConfig {
 	nodeID := flag.String("node-id", "node1", "Unique node identifier")
 	isLeader := flag.Bool("leader", false, "Run as leader")
 	port := flag.String("port", "50051", "Port to listen on")
-	followers := flag.String("followers", "", "Comma-separated list of follower addresses (leader only)")
 	leaderAddr := flag.String("leader-addr", "", "Leader address (follower only)")
 
 	flag.Parse()
@@ -92,15 +87,7 @@ func parseFlags() *config.ServerConfig {
 		Address:  fmt.Sprintf("localhost:%s", *port),
 	}
 
-	if *isLeader {
-		if *followers != "" {
-			cfg.FollowerAddrs = strings.Split(*followers, ",")
-			// Trim spaces
-			for i := range cfg.FollowerAddrs {
-				cfg.FollowerAddrs[i] = strings.TrimSpace(cfg.FollowerAddrs[i])
-			}
-		}
-	} else {
+	if !*isLeader {
 		if *leaderAddr == "" {
 			log.Fatal().Msg("Follower must specify --leader-addr")
 		}

@@ -19,16 +19,15 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	Replication_ReplicateCommand_FullMethodName = "/kvs.Replication/ReplicateCommand"
-	Replication_Healthcheck_FullMethodName      = "/kvs.Replication/Healthcheck"
+	Replication_StreamReplication_FullMethodName = "/kvs.Replication/StreamReplication"
 )
 
 // ReplicationClient is the client API for Replication service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ReplicationClient interface {
-	ReplicateCommand(ctx context.Context, in *ReplicateRequest, opts ...grpc.CallOption) (*ReplicateResponse, error)
-	Healthcheck(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
+	// Follower calls this to receive stream of commands from leader
+	StreamReplication(ctx context.Context, in *FollowerInfo, opts ...grpc.CallOption) (Replication_StreamReplicationClient, error)
 }
 
 type replicationClient struct {
@@ -39,30 +38,44 @@ func NewReplicationClient(cc grpc.ClientConnInterface) ReplicationClient {
 	return &replicationClient{cc}
 }
 
-func (c *replicationClient) ReplicateCommand(ctx context.Context, in *ReplicateRequest, opts ...grpc.CallOption) (*ReplicateResponse, error) {
-	out := new(ReplicateResponse)
-	err := c.cc.Invoke(ctx, Replication_ReplicateCommand_FullMethodName, in, out, opts...)
+func (c *replicationClient) StreamReplication(ctx context.Context, in *FollowerInfo, opts ...grpc.CallOption) (Replication_StreamReplicationClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Replication_ServiceDesc.Streams[0], Replication_StreamReplication_FullMethodName, opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &replicationStreamReplicationClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
 }
 
-func (c *replicationClient) Healthcheck(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error) {
-	out := new(HealthResponse)
-	err := c.cc.Invoke(ctx, Replication_Healthcheck_FullMethodName, in, out, opts...)
-	if err != nil {
+type Replication_StreamReplicationClient interface {
+	Recv() (*ReplicationCommand, error)
+	grpc.ClientStream
+}
+
+type replicationStreamReplicationClient struct {
+	grpc.ClientStream
+}
+
+func (x *replicationStreamReplicationClient) Recv() (*ReplicationCommand, error) {
+	m := new(ReplicationCommand)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
-	return out, nil
+	return m, nil
 }
 
 // ReplicationServer is the server API for Replication service.
 // All implementations must embed UnimplementedReplicationServer
 // for forward compatibility
 type ReplicationServer interface {
-	ReplicateCommand(context.Context, *ReplicateRequest) (*ReplicateResponse, error)
-	Healthcheck(context.Context, *HealthRequest) (*HealthResponse, error)
+	// Follower calls this to receive stream of commands from leader
+	StreamReplication(*FollowerInfo, Replication_StreamReplicationServer) error
 	mustEmbedUnimplementedReplicationServer()
 }
 
@@ -70,11 +83,8 @@ type ReplicationServer interface {
 type UnimplementedReplicationServer struct {
 }
 
-func (UnimplementedReplicationServer) ReplicateCommand(context.Context, *ReplicateRequest) (*ReplicateResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ReplicateCommand not implemented")
-}
-func (UnimplementedReplicationServer) Healthcheck(context.Context, *HealthRequest) (*HealthResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Healthcheck not implemented")
+func (UnimplementedReplicationServer) StreamReplication(*FollowerInfo, Replication_StreamReplicationServer) error {
+	return status.Errorf(codes.Unimplemented, "method StreamReplication not implemented")
 }
 func (UnimplementedReplicationServer) mustEmbedUnimplementedReplicationServer() {}
 
@@ -89,40 +99,25 @@ func RegisterReplicationServer(s grpc.ServiceRegistrar, srv ReplicationServer) {
 	s.RegisterService(&Replication_ServiceDesc, srv)
 }
 
-func _Replication_ReplicateCommand_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ReplicateRequest)
-	if err := dec(in); err != nil {
-		return nil, err
+func _Replication_StreamReplication_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(FollowerInfo)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
 	}
-	if interceptor == nil {
-		return srv.(ReplicationServer).ReplicateCommand(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Replication_ReplicateCommand_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ReplicationServer).ReplicateCommand(ctx, req.(*ReplicateRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return srv.(ReplicationServer).StreamReplication(m, &replicationStreamReplicationServer{stream})
 }
 
-func _Replication_Healthcheck_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HealthRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ReplicationServer).Healthcheck(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Replication_Healthcheck_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ReplicationServer).Healthcheck(ctx, req.(*HealthRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+type Replication_StreamReplicationServer interface {
+	Send(*ReplicationCommand) error
+	grpc.ServerStream
+}
+
+type replicationStreamReplicationServer struct {
+	grpc.ServerStream
+}
+
+func (x *replicationStreamReplicationServer) Send(m *ReplicationCommand) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 // Replication_ServiceDesc is the grpc.ServiceDesc for Replication service.
@@ -131,16 +126,13 @@ func _Replication_Healthcheck_Handler(srv interface{}, ctx context.Context, dec 
 var Replication_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "kvs.Replication",
 	HandlerType: (*ReplicationServer)(nil),
-	Methods: []grpc.MethodDesc{
+	Methods:     []grpc.MethodDesc{},
+	Streams: []grpc.StreamDesc{
 		{
-			MethodName: "ReplicateCommand",
-			Handler:    _Replication_ReplicateCommand_Handler,
-		},
-		{
-			MethodName: "Healthcheck",
-			Handler:    _Replication_Healthcheck_Handler,
+			StreamName:    "StreamReplication",
+			Handler:       _Replication_StreamReplication_Handler,
+			ServerStreams: true,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
 	Metadata: "api/proto/replication.proto",
 }

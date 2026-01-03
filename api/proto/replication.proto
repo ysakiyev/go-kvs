@@ -5,21 +5,16 @@ package kvs;
 option go_package = "github.com/ysakiyev/go-kvs";
 
 service Replication {
-  rpc ReplicateCommand(ReplicateRequest) returns(ReplicateResponse) {}
-  rpc Healthcheck(HealthRequest) returns(HealthResponse) {}
+  // Follower calls this to receive stream of commands from leader
+  rpc StreamReplication(FollowerInfo) returns(stream ReplicationCommand) {}
 }
 
-message ReplicateRequest {
-  bytes command = 1;  // Serialized Cmd (set/del)
+message FollowerInfo {
+  string follower_id = 1;
+  string follower_addr = 2;
 }
 
-message ReplicateResponse {
-  bool success = 1;
-  string error = 2;
-}
-
-message HealthRequest {}
-
-message HealthResponse {
-  bool healthy = 1;
+message ReplicationCommand {
+  bytes command = 1;
+  int64 sequence = 2;
 }

@@ -12,17 +12,17 @@ import (
 )
 
 type KvsServer struct {
-	kvs        *kvs.Kvs
-	replicator *replication.Replicator // NEW
-	isLeader   bool                    // NEW
+	kvs       *kvs.Kvs
+	streamMgr *replication.StreamManager
+	isLeader  bool
 	go_kvs.UnimplementedGoKvsServer
 }
 
-func NewKvsServer(kvs *kvs.Kvs, replicator *replication.Replicator, isLeader bool) *KvsServer {
+func NewKvsServer(kvs *kvs.Kvs, streamMgr *replication.StreamManager, isLeader bool) *KvsServer {
 	return &KvsServer{
-		kvs:        kvs,
-		replicator: replicator,
-		isLeader:   isLeader,
+		kvs:       kvs,
+		streamMgr: streamMgr,
+		isLeader:  isLeader,
 	}
 }
 
@@ -49,11 +49,11 @@ func (k *KvsServer) Set(ctx context.Context, request *go_kvs.KeyValRequest) (*go
 		return nil, err
 	}
 
-	// Replicate to followers (async, fire-and-forget for now)
-	if k.replicator != nil {
+	// Broadcast to followers via streams
+	if k.streamMgr != nil {
 		cmd := command.New("set", request.Key, request.Val)
 		cmdBytes, _ := cmd.Serialize()
-		go k.replicator.Replicate(cmdBytes)
+		k.streamMgr.Broadcast(cmdBytes)
 	}
 
 	return &go_kvs.EmptyResponse{}, nil
@@ -71,11 +71,11 @@ func (k *KvsServer) Del(ctx context.Context, request *go_kvs.KeyRequest) (*go_kv
 		return nil, err
 	}
 
-	// Replicate to followers (async, fire-and-forget for now)
-	if k.replicator != nil {
+	// Broadcast to followers via streams
+	if k.streamMgr != nil {
 		cmd := command.New("del", request.Key, "")
 		cmdBytes, _ := cmd.Serialize()
-		go k.replicator.Replicate(cmdBytes)
+		k.streamMgr.Broadcast(cmdBytes)
 	}
 
 	return &go_kvs.EmptyResponse{}, nil

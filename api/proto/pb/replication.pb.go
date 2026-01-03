@@ -20,16 +20,17 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type ReplicateRequest struct {
+type FollowerInfo struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Command []byte `protobuf:"bytes,1,opt,name=command,proto3" json:"command,omitempty"` // Serialized Cmd (set/del)
+	FollowerId   string `protobuf:"bytes,1,opt,name=follower_id,json=followerId,proto3" json:"follower_id,omitempty"`
+	FollowerAddr string `protobuf:"bytes,2,opt,name=follower_addr,json=followerAddr,proto3" json:"follower_addr,omitempty"`
 }
 
-func (x *ReplicateRequest) Reset() {
-	*x = ReplicateRequest{}
+func (x *FollowerInfo) Reset() {
+	*x = FollowerInfo{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_api_proto_replication_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -37,13 +38,13 @@ func (x *ReplicateRequest) Reset() {
 	}
 }
 
-func (x *ReplicateRequest) String() string {
+func (x *FollowerInfo) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ReplicateRequest) ProtoMessage() {}
+func (*FollowerInfo) ProtoMessage() {}
 
-func (x *ReplicateRequest) ProtoReflect() protoreflect.Message {
+func (x *FollowerInfo) ProtoReflect() protoreflect.Message {
 	mi := &file_api_proto_replication_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -55,29 +56,36 @@ func (x *ReplicateRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ReplicateRequest.ProtoReflect.Descriptor instead.
-func (*ReplicateRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use FollowerInfo.ProtoReflect.Descriptor instead.
+func (*FollowerInfo) Descriptor() ([]byte, []int) {
 	return file_api_proto_replication_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ReplicateRequest) GetCommand() []byte {
+func (x *FollowerInfo) GetFollowerId() string {
 	if x != nil {
-		return x.Command
+		return x.FollowerId
 	}
-	return nil
+	return ""
 }
 
-type ReplicateResponse struct {
+func (x *FollowerInfo) GetFollowerAddr() string {
+	if x != nil {
+		return x.FollowerAddr
+	}
+	return ""
+}
+
+type ReplicationCommand struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Success bool   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	Error   string `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	Command  []byte `protobuf:"bytes,1,opt,name=command,proto3" json:"command,omitempty"`
+	Sequence int64  `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
 }
 
-func (x *ReplicateResponse) Reset() {
-	*x = ReplicateResponse{}
+func (x *ReplicationCommand) Reset() {
+	*x = ReplicationCommand{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_api_proto_replication_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -85,13 +93,13 @@ func (x *ReplicateResponse) Reset() {
 	}
 }
 
-func (x *ReplicateResponse) String() string {
+func (x *ReplicationCommand) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ReplicateResponse) ProtoMessage() {}
+func (*ReplicationCommand) ProtoMessage() {}
 
-func (x *ReplicateResponse) ProtoReflect() protoreflect.Message {
+func (x *ReplicationCommand) ProtoReflect() protoreflect.Message {
 	mi := &file_api_proto_replication_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -103,108 +111,23 @@ func (x *ReplicateResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ReplicateResponse.ProtoReflect.Descriptor instead.
-func (*ReplicateResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ReplicationCommand.ProtoReflect.Descriptor instead.
+func (*ReplicationCommand) Descriptor() ([]byte, []int) {
 	return file_api_proto_replication_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *ReplicateResponse) GetSuccess() bool {
+func (x *ReplicationCommand) GetCommand() []byte {
 	if x != nil {
-		return x.Success
+		return x.Command
 	}
-	return false
+	return nil
 }
 
-func (x *ReplicateResponse) GetError() string {
+func (x *ReplicationCommand) GetSequence() int64 {
 	if x != nil {
-		return x.Error
+		return x.Sequence
 	}
-	return ""
-}
-
-type HealthRequest struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-}
-
-func (x *HealthRequest) Reset() {
-	*x = HealthRequest{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_replication_proto_msgTypes[2]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *HealthRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HealthRequest) ProtoMessage() {}
-
-func (x *HealthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_replication_proto_msgTypes[2]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HealthRequest.ProtoReflect.Descriptor instead.
-func (*HealthRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_replication_proto_rawDescGZIP(), []int{2}
-}
-
-type HealthResponse struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Healthy bool `protobuf:"varint,1,opt,name=healthy,proto3" json:"healthy,omitempty"`
-}
-
-func (x *HealthResponse) Reset() {
-	*x = HealthResponse{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_api_proto_replication_proto_msgTypes[3]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *HealthResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HealthResponse) ProtoMessage() {}
-
-func (x *HealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_replication_proto_msgTypes[3]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HealthResponse.ProtoReflect.Descriptor instead.
-func (*HealthResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_replication_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *HealthResponse) GetHealthy() bool {
-	if x != nil {
-		return x.Healthy
-	}
-	return false
+	return 0
 }
 
 var File_api_proto_replication_proto protoreflect.FileDescriptor
@@ -212,29 +135,24 @@ var File_api_proto_replication_proto protoreflect.FileDescriptor
 var file_api_proto_replication_proto_rawDesc = []byte{
 	0x0a, 0x1b, 0x61, 0x70, 0x69, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x72, 0x65, 0x70, 0x6c,
 	0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x03, 0x6b,
-	0x76, 0x73, 0x22, 0x2c, 0x0a, 0x10, 0x52, 0x65, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74, 0x65, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x18, 0x0a, 0x07, 0x63, 0x6f, 0x6d, 0x6d, 0x61, 0x6e,
-	0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x07, 0x63, 0x6f, 0x6d, 0x6d, 0x61, 0x6e, 0x64,
-	0x22, 0x43, 0x0a, 0x11, 0x52, 0x65, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74, 0x65, 0x52, 0x65, 0x73,
-	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x73, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73,
-	0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x07, 0x73, 0x75, 0x63, 0x63, 0x65, 0x73, 0x73, 0x12,
-	0x14, 0x0a, 0x05, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x05,
-	0x65, 0x72, 0x72, 0x6f, 0x72, 0x22, 0x0f, 0x0a, 0x0d, 0x48, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x22, 0x2a, 0x0a, 0x0e, 0x48, 0x65, 0x61, 0x6c, 0x74, 0x68,
-	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x68, 0x65, 0x61, 0x6c,
-	0x74, 0x68, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x07, 0x68, 0x65, 0x61, 0x6c, 0x74,
-	0x68, 0x79, 0x32, 0x8c, 0x01, 0x0a, 0x0b, 0x52, 0x65, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74, 0x69,
-	0x6f, 0x6e, 0x12, 0x43, 0x0a, 0x10, 0x52, 0x65, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74, 0x65, 0x43,
-	0x6f, 0x6d, 0x6d, 0x61, 0x6e, 0x64, 0x12, 0x15, 0x2e, 0x6b, 0x76, 0x73, 0x2e, 0x52, 0x65, 0x70,
-	0x6c, 0x69, 0x63, 0x61, 0x74, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x16, 0x2e,
-	0x6b, 0x76, 0x73, 0x2e, 0x52, 0x65, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74, 0x65, 0x52, 0x65, 0x73,
-	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x38, 0x0a, 0x0b, 0x48, 0x65, 0x61, 0x6c, 0x74,
-	0x68, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x12, 0x12, 0x2e, 0x6b, 0x76, 0x73, 0x2e, 0x48, 0x65, 0x61,
-	0x6c, 0x74, 0x68, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x13, 0x2e, 0x6b, 0x76, 0x73,
-	0x2e, 0x48, 0x65, 0x61, 0x6c, 0x74, 0x68, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22,
-	0x00, 0x42, 0x1c, 0x5a, 0x1a, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f,
-	0x79, 0x73, 0x61, 0x6b, 0x69, 0x79, 0x65, 0x76, 0x2f, 0x67, 0x6f, 0x2d, 0x6b, 0x76, 0x73, 0x62,
-	0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x76, 0x73, 0x22, 0x54, 0x0a, 0x0c, 0x46, 0x6f, 0x6c, 0x6c, 0x6f, 0x77, 0x65, 0x72, 0x49, 0x6e,
+	0x66, 0x6f, 0x12, 0x1f, 0x0a, 0x0b, 0x66, 0x6f, 0x6c, 0x6c, 0x6f, 0x77, 0x65, 0x72, 0x5f, 0x69,
+	0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0a, 0x66, 0x6f, 0x6c, 0x6c, 0x6f, 0x77, 0x65,
+	0x72, 0x49, 0x64, 0x12, 0x23, 0x0a, 0x0d, 0x66, 0x6f, 0x6c, 0x6c, 0x6f, 0x77, 0x65, 0x72, 0x5f,
+	0x61, 0x64, 0x64, 0x72, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0c, 0x66, 0x6f, 0x6c, 0x6c,
+	0x6f, 0x77, 0x65, 0x72, 0x41, 0x64, 0x64, 0x72, 0x22, 0x4a, 0x0a, 0x12, 0x52, 0x65, 0x70, 0x6c,
+	0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x43, 0x6f, 0x6d, 0x6d, 0x61, 0x6e, 0x64, 0x12, 0x18,
+	0x0a, 0x07, 0x63, 0x6f, 0x6d, 0x6d, 0x61, 0x6e, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52,
+	0x07, 0x63, 0x6f, 0x6d, 0x6d, 0x61, 0x6e, 0x64, 0x12, 0x1a, 0x0a, 0x08, 0x73, 0x65, 0x71, 0x75,
+	0x65, 0x6e, 0x63, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x03, 0x52, 0x08, 0x73, 0x65, 0x71, 0x75,
+	0x65, 0x6e, 0x63, 0x65, 0x32, 0x52, 0x0a, 0x0b, 0x52, 0x65, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74,
+	0x69, 0x6f, 0x6e, 0x12, 0x43, 0x0a, 0x11, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x52, 0x65, 0x70,
+	0x6c, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x11, 0x2e, 0x6b, 0x76, 0x73, 0x2e, 0x46,
+	0x6f, 0x6c, 0x6c, 0x6f, 0x77, 0x65, 0x72, 0x49, 0x6e, 0x66, 0x6f, 0x1a, 0x17, 0x2e, 0x6b, 0x76,
+	0x73, 0x2e, 0x52, 0x65, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x43, 0x6f, 0x6d,
+	0x6d, 0x61, 0x6e, 0x64, 0x22, 0x00, 0x30, 0x01, 0x42, 0x1c, 0x5a, 0x1a, 0x67, 0x69, 0x74, 0x68,
+	0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x79, 0x73, 0x61, 0x6b, 0x69, 0x79, 0x65, 0x76, 0x2f,
+	0x67, 0x6f, 0x2d, 0x6b, 0x76, 0x73, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -249,20 +167,16 @@ func file_api_proto_replication_proto_rawDescGZIP() []byte {
 	return file_api_proto_replication_proto_rawDescData
 }
 
-var file_api_proto_replication_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_api_proto_replication_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_api_proto_replication_proto_goTypes = []interface{}{
-	(*ReplicateRequest)(nil),  // 0: kvs.ReplicateRequest
-	(*ReplicateResponse)(nil), // 1: kvs.ReplicateResponse
-	(*HealthRequest)(nil),     // 2: kvs.HealthRequest
-	(*HealthResponse)(nil),    // 3: kvs.HealthResponse
+	(*FollowerInfo)(nil),       // 0: kvs.FollowerInfo
+	(*ReplicationCommand)(nil), // 1: kvs.ReplicationCommand
 }
 var file_api_proto_replication_proto_depIdxs = []int32{
-	0, // 0: kvs.Replication.ReplicateCommand:input_type -> kvs.ReplicateRequest
-	2, // 1: kvs.Replication.Healthcheck:input_type -> kvs.HealthRequest
-	1, // 2: kvs.Replication.ReplicateCommand:output_type -> kvs.ReplicateResponse
-	3, // 3: kvs.Replication.Healthcheck:output_type -> kvs.HealthResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	0, // 0: kvs.Replication.StreamReplication:input_type -> kvs.FollowerInfo
+	1, // 1: kvs.Replication.StreamReplication:output_type -> kvs.ReplicationCommand
+	1, // [1:2] is the sub-list for method output_type
+	0, // [0:1] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -275,7 +189,7 @@ func file_api_proto_replication_proto_init() {
 	}
 	if !protoimpl.UnsafeEnabled {
 		file_api_proto_replication_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ReplicateRequest); i {
+			switch v := v.(*FollowerInfo); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -287,31 +201,7 @@ func file_api_proto_replication_proto_init() {
 			}
 		}
 		file_api_proto_replication_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ReplicateResponse); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_api_proto_replication_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*HealthRequest); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_api_proto_replication_proto_msgTypes[3].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*HealthResponse); i {
+			switch v := v.(*ReplicationCommand); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -329,7 +219,7 @@ func file_api_proto_replication_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_api_proto_replication_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
