@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package kvs;
+
+option go_package = "github.com/ysakiyev/go-kvs";
+
+service Replication {
+  rpc ReplicateCommand(ReplicateRequest) returns(ReplicateResponse) {}
+  rpc Healthcheck(HealthRequest) returns(HealthResponse) {}
+}
+
+message ReplicateRequest {
+  bytes command = 1;  // Serialized Cmd (set/del)
+}
+
+message ReplicateResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  bool healthy = 1;
+}
