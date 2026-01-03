@@ -12,6 +12,7 @@ service Replication {
 message FollowerInfo {
   string follower_id = 1;
   string follower_addr = 2;
+  int64 last_sequence = 3;  // Last sequence follower has applied
 }
 
 message ReplicationCommand {

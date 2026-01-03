@@ -5,3 +5,6 @@
 # Compiled binaries
 server
 client
+
+# Sequence tracking files
+.*.seq

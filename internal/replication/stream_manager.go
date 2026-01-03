@@ -9,15 +9,17 @@ import (
 )
 
 type StreamManager struct {
-	streams  map[string]chan *go_kvs.ReplicationCommand
-	mu       sync.RWMutex
-	sequence int64
+	streams   map[string]chan *go_kvs.ReplicationCommand
+	recentLog *RecentLog
+	mu        sync.RWMutex
+	sequence  int64
 }
 
 func NewStreamManager() *StreamManager {
 	return &StreamManager{
-		streams:  make(map[string]chan *go_kvs.ReplicationCommand),
-		sequence: 0,
+		streams:   make(map[string]chan *go_kvs.ReplicationCommand),
+		recentLog: NewRecentLog(DefaultRecentLogSize),
+		sequence:  0,
 	}
 }
 
@@ -52,6 +54,9 @@ func (sm *StreamManager) Broadcast(cmdBytes []byte) {
 		Sequence: seq,
 	}
 
+	// Add to recent log for catch-up
+	sm.recentLog.Add(cmd)
+
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 
@@ -65,6 +70,12 @@ func (sm *StreamManager) Broadcast(cmdBytes []byte) {
 			log.Warn().Msgf("Follower %s channel full (seq=%d), command may be dropped", followerID, seq)
 		}
 	}
+}
+
+// GetMissedCommands returns commands since lastSeq for catch-up
+// Returns (commands, canCatchUp). If canCatchUp is false, too many commands missed.
+func (sm *StreamManager) GetMissedCommands(lastSeq int64) ([]*go_kvs.ReplicationCommand, bool) {
+	return sm.recentLog.GetSince(lastSeq)
 }
 
 // GetFollowerCount returns number of connected followers
