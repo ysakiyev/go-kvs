@@ -2,10 +2,11 @@ package middleware
 
 import (
 	"context"
-	"github.com/rs/zerolog/log"
-	"google.golang.org/grpc"
 	"strings"
 	"time"
+
+	"github.com/rs/zerolog/log"
+	"google.golang.org/grpc"
 )
 
 // UnaryServerLoggingInterceptor logs information about unary RPCs.

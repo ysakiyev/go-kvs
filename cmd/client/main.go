@@ -4,13 +4,14 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/rs/zerolog/log"
 	pb "go-kvs/api/proto/pb"
 	g "go-kvs/internal/client"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/status"
 	"os"
 	"strings"
+
+	"github.com/rs/zerolog/log"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 )
 
 func main() {

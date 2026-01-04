@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	go_kvs "go-kvs/api/proto/pb"
+	gokvs "go-kvs/api/proto/pb"
 	"go-kvs/pkg/kvs"
 	"go-kvs/pkg/kvs/command"
 
@@ -81,8 +81,8 @@ func (f *StreamClient) ConnectToLeader() {
 			continue
 		}
 
-		client := go_kvs.NewReplicationClient(conn)
-		stream, err := client.StreamReplication(context.Background(), &go_kvs.FollowerInfo{
+		client := gokvs.NewReplicationClient(conn)
+		stream, err := client.StreamReplication(context.Background(), &gokvs.FollowerInfo{
 			FollowerId:   f.nodeID,
 			FollowerAddr: "",
 			LastSequence: f.lastSequence, // Send last sequence for catch-up
@@ -133,7 +133,7 @@ func (f *StreamClient) ConnectToLeader() {
 }
 
 // applyCommand deserializes and applies a command to the local KVS
-func (f *StreamClient) applyCommand(cmd *go_kvs.ReplicationCommand) error {
+func (f *StreamClient) applyCommand(cmd *gokvs.ReplicationCommand) error {
 	// Deserialize command
 	c, err := command.Deserialize(cmd.Command)
 	if err != nil {

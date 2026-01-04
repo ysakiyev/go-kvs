@@ -3,13 +3,13 @@ package replication
 import (
 	"sync"
 
-	go_kvs "go-kvs/api/proto/pb"
+	gokvs "go-kvs/api/proto/pb"
 
 	"github.com/rs/zerolog/log"
 )
 
 type StreamManager struct {
-	streams   map[string]chan *go_kvs.ReplicationCommand
+	streams   map[string]chan *gokvs.ReplicationCommand
 	recentLog *RecentLog
 	mu        sync.RWMutex
 	sequence  int64
@@ -17,14 +17,14 @@ type StreamManager struct {
 
 func NewStreamManager() *StreamManager {
 	return &StreamManager{
-		streams:   make(map[string]chan *go_kvs.ReplicationCommand),
+		streams:   make(map[string]chan *gokvs.ReplicationCommand),
 		recentLog: NewRecentLog(DefaultRecentLogSize),
 		sequence:  0,
 	}
 }
 
 // Register a new follower stream
-func (sm *StreamManager) Register(followerID string, ch chan *go_kvs.ReplicationCommand) {
+func (sm *StreamManager) Register(followerID string, ch chan *gokvs.ReplicationCommand) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.streams[followerID] = ch
@@ -49,7 +49,7 @@ func (sm *StreamManager) Broadcast(cmdBytes []byte) {
 	seq := sm.sequence
 	sm.mu.Unlock()
 
-	cmd := &go_kvs.ReplicationCommand{
+	cmd := &gokvs.ReplicationCommand{
 		Command:  cmdBytes,
 		Sequence: seq,
 	}
@@ -74,7 +74,7 @@ func (sm *StreamManager) Broadcast(cmdBytes []byte) {
 
 // GetMissedCommands returns commands since lastSeq for catch-up
 // Returns (commands, canCatchUp). If canCatchUp is false, too many commands missed.
-func (sm *StreamManager) GetMissedCommands(lastSeq int64) ([]*go_kvs.ReplicationCommand, bool) {
+func (sm *StreamManager) GetMissedCommands(lastSeq int64) ([]*gokvs.ReplicationCommand, bool) {
 	return sm.recentLog.GetSince(lastSeq)
 }
 

@@ -1,7 +1,7 @@
 package server
 
 import (
-	go_kvs "go-kvs/api/proto/pb"
+	gokvs "go-kvs/api/proto/pb"
 	"go-kvs/internal/replication"
 
 	"github.com/rs/zerolog/log"
@@ -9,7 +9,7 @@ import (
 
 type LeaderStreamServer struct {
 	streamMgr *replication.StreamManager
-	go_kvs.UnimplementedReplicationServer
+	gokvs.UnimplementedReplicationServer
 }
 
 func NewLeaderStreamServer(streamMgr *replication.StreamManager) *LeaderStreamServer {
@@ -19,7 +19,7 @@ func NewLeaderStreamServer(streamMgr *replication.StreamManager) *LeaderStreamSe
 }
 
 // StreamReplication handles follower connections and streams commands to them
-func (s *LeaderStreamServer) StreamReplication(req *go_kvs.FollowerInfo, stream go_kvs.Replication_StreamReplicationServer) error {
+func (s *LeaderStreamServer) StreamReplication(req *gokvs.FollowerInfo, stream gokvs.Replication_StreamReplicationServer) error {
 	followerID := req.FollowerId
 	lastSeq := req.LastSequence
 	log.Info().Msgf("Follower %s connected (last_seq=%d)", followerID, lastSeq)
@@ -50,7 +50,7 @@ func (s *LeaderStreamServer) StreamReplication(req *go_kvs.FollowerInfo, stream 
 
 	// Step 2: Start live streaming
 	// Create channel for this follower (buffered to handle bursts)
-	cmdChan := make(chan *go_kvs.ReplicationCommand, 100)
+	cmdChan := make(chan *gokvs.ReplicationCommand, 100)
 
 	// Register follower
 	s.streamMgr.Register(followerID, cmdChan)

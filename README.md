@@ -16,32 +16,164 @@ Distributed key-value storage with leader-follower streaming replication.
 
 ## Architecture
 
+### System Overview
+
+```mermaid
+graph TB
+    subgraph Client
+        CLI[Client CLI]
+    end
+
+    subgraph Leader["Leader Node (port 50051)"]
+        GRPC_L[gRPC Server]
+        KVS_L[KVS Engine]
+        WAL_L[Write-Ahead Log]
+        IDX_L[In-Memory Index]
+        SM[StreamManager]
+        RL[RecentLog Buffer<br/>10k commands]
+
+        GRPC_L --> KVS_L
+        KVS_L --> WAL_L
+        KVS_L --> IDX_L
+        KVS_L --> SM
+        SM --> RL
+    end
+
+    subgraph Follower1["Follower Node 1 (port 50052)"]
+        GRPC_F1[gRPC Server]
+        SC_F1[StreamClient]
+        KVS_F1[KVS Engine]
+        WAL_F1[Write-Ahead Log]
+        IDX_F1[In-Memory Index]
+        SEQ_F1[.follower1.seq]
+
+        SC_F1 --> KVS_F1
+        KVS_F1 --> WAL_F1
+        KVS_F1 --> IDX_F1
+        SC_F1 --> SEQ_F1
+    end
+
+    subgraph Follower2["Follower Node 2 (port 50053)"]
+        GRPC_F2[gRPC Server]
+        SC_F2[StreamClient]
+        KVS_F2[KVS Engine]
+        WAL_F2[Write-Ahead Log]
+        IDX_F2[In-Memory Index]
+        SEQ_F2[.follower2.seq]
+
+        SC_F2 --> KVS_F2
+        KVS_F2 --> WAL_F2
+        KVS_F2 --> IDX_F2
+        SC_F2 --> SEQ_F2
+    end
+
+    CLI -->|Get/Set/Del/Keys| GRPC_L
+    SC_F1 -->|StreamReplication<br/>last_seq| SM
+    SC_F2 -->|StreamReplication<br/>last_seq| SM
+    SM -.->|Broadcast Commands| SC_F1
+    SM -.->|Broadcast Commands| SC_F2
+
+    style Leader fill:#e1f5ff
+    style Follower1 fill:#fff4e1
+    style Follower2 fill:#fff4e1
+    style RL fill:#ffebee
+    style SEQ_F1 fill:#e8f5e9
+    style SEQ_F2 fill:#e8f5e9
 ```
-┌─────────────────────────────────────┐
-│  Leader (port 50051)                │
-│  ┌──────────────────────────────┐   │
-│  │ StreamManager                │   │
-│  │ - follower1 → stream         │   │
-│  │ - follower2 → stream         │   │
-│  │                              │   │
-│  │ RecentLog (10k buffer)       │   │
-│  │ [seq:1, seq:2, ..., seq:N]  │   │
-│  └──────────────────────────────┘   │
-│         ↓ Broadcast + Store          │
-│   [WAL + In-memory Index]            │
-└──────────┬──────────────────────────┘
-           │
-    ┌──────┴──────┬───────────────┐
-    ↓             ↓               ↓
-┌─────────┐  ┌─────────┐  ┌─────────────┐
-│Follower1│  │Follower2│  │Follower3    │
-│ Stream  │  │ Stream  │  │ Stream      │
-│  Recv() │  │  Recv() │  │  Recv()     │
-│  [WAL]  │  │  [WAL]  │  │  [WAL]      │
-│ .seq:N  │  │ .seq:N  │  │ .seq:N      │
-└─────────┘  └─────────┘  └─────────────┘
-   ↓ restart with last_seq
-   Catch-up: Leader replays [last_seq+1..N]
+
+### Write Operation Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Leader
+    participant WAL_L as Leader WAL
+    participant StreamMgr as StreamManager
+    participant RecentLog
+    participant Follower1
+    participant Follower2
+
+    Client->>Leader: SET x=foo
+    Leader->>WAL_L: Append command
+    WAL_L-->>Leader: offset
+    Leader->>Leader: Update index[x]=offset
+    Leader->>StreamMgr: Broadcast(cmd, seq=N)
+    StreamMgr->>RecentLog: Store(seq=N)
+    StreamMgr-->>Follower1: Stream.Send(seq=N)
+    StreamMgr-->>Follower2: Stream.Send(seq=N)
+    Leader-->>Client: Success
+
+    Follower1->>Follower1: Apply to WAL + Index
+    Follower1->>Follower1: Save seq=N to .seq file
+
+    Follower2->>Follower2: Apply to WAL + Index
+    Follower2->>Follower2: Save seq=N to .seq file
+```
+
+### Catch-Up Mechanism Flow
+
+```mermaid
+sequenceDiagram
+    participant F as Follower
+    participant SeqFile as .follower.seq
+    participant L as Leader
+    participant RL as RecentLog
+    participant SM as StreamManager
+
+    Note over F: Follower restarts after downtime
+    F->>SeqFile: Read last_sequence
+    SeqFile-->>F: last_seq=5
+
+    F->>L: StreamReplication(last_seq=5)
+    L->>RL: GetSince(5)
+
+    alt Commands available in buffer
+        RL-->>L: [seq:6, seq:7, seq:8]
+        L->>F: Send seq:6
+        L->>F: Send seq:7
+        L->>F: Send seq:8
+        Note over L,F: Catch-up phase
+        F->>F: Apply missed commands
+        F->>SeqFile: Save seq=8
+        L->>SM: Register follower stream
+        Note over L,F: Live streaming phase
+        SM-->>F: New commands (seq:9, 10, ...)
+    else Too far behind (>10k)
+        RL-->>L: nil, canCatchUp=false
+        L->>L: Log warning
+        Note over L: Manual sync needed
+        L->>SM: Register anyway (live only)
+    end
+```
+
+### Follower Connection States
+
+```mermaid
+stateDiagram-v2
+    [*] --> Disconnected
+    Disconnected --> Connecting: Start/Retry
+    Connecting --> LoadingSeq: Dial success
+    LoadingSeq --> RequestingStream: Load .seq file
+    RequestingStream --> CatchingUp: StreamReplication(last_seq)
+    CatchingUp --> LiveStreaming: Catch-up complete
+    LiveStreaming --> Disconnected: Error/Leader down
+    LiveStreaming --> [*]: Shutdown
+    Disconnected --> Disconnected: Retry in 2s
+
+    note right of LoadingSeq
+        Read last_sequence
+        from disk
+    end note
+
+    note right of CatchingUp
+        Replay missed commands
+        from RecentLog
+    end note
+
+    note right of LiveStreaming
+        Receive & apply
+        new commands
+    end note
 ```
 
 ## How It Works
@@ -244,6 +376,136 @@ cat .follower2.seq     # Should show "3"
 - **Limited catch-up**: Only keeps last 10,000 commands (configurable)
 - **Memory overhead**: Leader keeps RecentLog + one channel + goroutine per follower
 - **Sequence files**: Additional `.{nodeID}.seq` files for tracking (small overhead)
+
+## Component Architecture
+
+### Class/Component Diagram
+
+```mermaid
+classDiagram
+    class KvsServer {
+        -kvs: Kvs
+        -streamMgr: StreamManager
+        -isLeader: bool
+        +Get(key) ValResponse
+        +Set(key, val) EmptyResponse
+        +Del(key) EmptyResponse
+        +Keys() KeysResponse
+    }
+
+    class StreamManager {
+        -streams: map[followerID]chan
+        -recentLog: RecentLog
+        -sequence: int64
+        +Register(followerID, chan)
+        +Unregister(followerID)
+        +Broadcast(command)
+        +GetMissedCommands(lastSeq) []Command
+    }
+
+    class RecentLog {
+        -commands: []ReplicationCommand
+        -capacity: int
+        -startSeq: int64
+        +Add(command)
+        +GetSince(lastSeq) []Command
+        +GetLatestSequence() int64
+    }
+
+    class LeaderStreamServer {
+        -streamMgr: StreamManager
+        +StreamReplication(FollowerInfo, stream)
+    }
+
+    class StreamClient {
+        -nodeID: string
+        -leaderAddr: string
+        -kvs: Kvs
+        -lastSequence: int64
+        -seqFile: string
+        +ConnectToLeader()
+        +applyCommand(cmd)
+        -loadLastSequence()
+        -saveLastSequence()
+    }
+
+    class Kvs {
+        -index: map[string]int64
+        -wal: WAL
+        +Set(key, val)
+        +Get(key) val
+        +Del(key)
+        +Keys() []string
+        +Init()
+    }
+
+    class WriteAheadLog {
+        -file: File
+        -index: map[string]int64
+        +Append(cmd) offset
+        +Read(offset) cmd
+    }
+
+    KvsServer --> StreamManager: uses
+    KvsServer --> Kvs: owns
+    StreamManager --> RecentLog: owns
+    LeaderStreamServer --> StreamManager: uses
+    StreamClient --> Kvs: owns
+    Kvs --> WriteAheadLog: owns
+```
+
+### Data Flow Diagram
+
+```mermaid
+flowchart LR
+    subgraph Input
+        Client[Client Request]
+    end
+
+    subgraph Leader Processing
+        Validate[Validate Leader]
+        ApplyWAL[Append to WAL]
+        UpdateIdx[Update Index]
+        AssignSeq[Assign Sequence]
+        StoreRecent[Store in RecentLog]
+        Broadcast[Broadcast to Streams]
+    end
+
+    subgraph Followers
+        F1[Follower 1<br/>Stream Recv]
+        F2[Follower 2<br/>Stream Recv]
+        F3[Follower N<br/>Stream Recv]
+    end
+
+    subgraph Follower Processing
+        Deserialize[Deserialize Command]
+        ApplyF[Apply to WAL + Index]
+        SaveSeq[Save Sequence]
+    end
+
+    Client --> Validate
+    Validate -->|Not Leader| Error[Return Error]
+    Validate -->|Is Leader| ApplyWAL
+    ApplyWAL --> UpdateIdx
+    UpdateIdx --> AssignSeq
+    AssignSeq --> StoreRecent
+    StoreRecent --> Broadcast
+    Broadcast --> F1
+    Broadcast --> F2
+    Broadcast --> F3
+    Broadcast --> Success[Return Success]
+
+    F1 --> Deserialize
+    F2 --> Deserialize
+    F3 --> Deserialize
+    Deserialize --> ApplyF
+    ApplyF --> SaveSeq
+
+    style Validate fill:#fff4e1
+    style ApplyWAL fill:#e1f5ff
+    style Broadcast fill:#ffebee
+    style SaveSeq fill:#e8f5e9
+```
 
 ## Project Structure
 

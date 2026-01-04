@@ -2,8 +2,9 @@ package wal
 
 import (
 	"bufio"
-	"github.com/rs/zerolog/log"
 	"os"
+
+	"github.com/rs/zerolog/log"
 )
 
 type WAL interface {
