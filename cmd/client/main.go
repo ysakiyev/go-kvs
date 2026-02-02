@@ -4,13 +4,14 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/rs/zerolog/log"
 	pb "go-kvs/api/proto/pb"
 	g "go-kvs/internal/client"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/status"
 	"os"
 	"strings"
+
+	"github.com/rs/zerolog/log"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 )
 
 func main() {
@@ -84,13 +85,34 @@ func main() {
 				continue
 			}
 
+		case "keys":
+			if len(parts) != 1 {
+				fmt.Println("Invalid 'keys' command. Usage: keys")
+				continue
+			}
+			res, err := client.Keys(context.Background(), &pb.EmptyRequest{})
+			if err != nil {
+				if st, ok := status.FromError(err); ok {
+					fmt.Printf("Error: %s\n", st.Message())
+				}
+				continue
+			}
+			if len(res.Keys) == 0 {
+				fmt.Println("No keys found")
+			} else {
+				fmt.Printf("Keys (%d):\n", len(res.Keys))
+				for _, key := range res.Keys {
+					fmt.Printf("  - %s\n", key)
+				}
+			}
+
 		case "exit":
 			fmt.Println("Exiting...")
 			os.Exit(0)
 			return
 
 		default:
-			fmt.Println("Invalid command. Valid commands are: get, set, del, exit")
+			fmt.Println("Invalid command. Valid commands are: get, set, del, keys, exit")
 		}
 	}
 }

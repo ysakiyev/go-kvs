@@ -1,8 +1,9 @@
 package client
 
 import (
-	context "context"
+	"context"
 	"go-kvs/api/proto/pb"
+
 	"google.golang.org/grpc"
 )
 
@@ -24,4 +25,8 @@ func (k *KvsClient) Set(ctx context.Context, in *go_kvs.KeyValRequest, opts ...g
 
 func (k *KvsClient) Del(ctx context.Context, in *go_kvs.KeyRequest, opts ...grpc.CallOption) (*go_kvs.EmptyResponse, error) {
 	return k.client.Del(ctx, in, opts...)
+}
+
+func (k *KvsClient) Keys(ctx context.Context, in *go_kvs.EmptyRequest, opts ...grpc.CallOption) (*go_kvs.KeysResponse, error) {
+	return k.client.Keys(ctx, in, opts...)
 }

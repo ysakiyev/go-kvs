@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package kvs;
+
+option go_package = "github.com/ysakiyev/go-kvs";
+
+service Replication {
+  // Follower calls this to receive stream of commands from leader
+  rpc StreamReplication(FollowerInfo) returns(stream ReplicationCommand) {}
+}
+
+message FollowerInfo {
+  string follower_id = 1;
+  string follower_addr = 2;
+  int64 last_sequence = 3;  // Last sequence follower has applied
+}
+
+message ReplicationCommand {
+  bytes command = 1;
+  int64 sequence = 2;
+}

@@ -1,2 +1,10 @@
 .idea
 *.log
+.DS_Store
+
+# Compiled binaries
+server
+client
+
+# Sequence tracking files
+.*.seq
